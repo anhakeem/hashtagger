@@ -114,7 +114,15 @@ def _default_engine_factory():
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"]
 
-    aggregator = TrendAggregator([MastodonProvider(), RedditProvider()])
+    # Trend providers: free MVP sources always; TwitterAPI.io only when a key
+    # is configured (it is the paid production source for X data).
+    providers = [MastodonProvider(), RedditProvider()]
+    if os.environ.get("TWITTERAPI_IO_KEY"):
+        from hashtagger.trends.twitterapi_io import TwitterApiIoProvider
+
+        providers.append(TwitterApiIoProvider())
+
+    aggregator = TrendAggregator(providers)
     return HashtagEngine(
         aggregator=aggregator,
         llm_client=_HTTPLLMClient(),
