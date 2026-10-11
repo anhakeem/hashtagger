@@ -1,8 +1,13 @@
 """FastAPI application for Hashtagger (architecture §4 contract).
 
 Endpoints:
-  POST /api/v1/generate   -> ranked hashtags for a post
-  GET  /api/v1/health     -> liveness + provider status
+  POST /api/v1/generate            -> ranked hashtags for a post
+  GET  /api/v1/usage               -> tier + daily usage
+  POST /api/v1/billing/checkout    -> upgrade/downgrade a plan
+  POST /api/v1/billing/webhook     -> subscription events
+  POST /api/v1/performance         -> record post performance (v2 loop)
+  GET  /api/v1/performance/top     -> top tags by engagement rate
+  GET  /api/v1/health              -> liveness + provider status
 
 Errors follow the single shape in architecture §5:
   {"error": {"code": ..., "message": ..., "details": ...}}
@@ -14,12 +19,27 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
+from hashtagger.billing import BillingService, PaymentError, StubPaymentProvider
 from hashtagger.models import GenerateRequest, GenerateResponse
 
 log = logging.getLogger(__name__)
 
 API_PREFIX = "/api/v1"
+
+
+class BillingCheckoutRequest(BaseModel):
+    account_id: str = Field(min_length=1, max_length=128)
+    plan: str = Field(min_length=1, max_length=32)
+
+
+class PerformanceRequest(BaseModel):
+    generation_id: str = Field(min_length=1, max_length=128)
+    platform: str = Field(min_length=1, max_length=32)
+    tag: str = Field(min_length=1, max_length=100)
+    impressions: int = Field(default=0, ge=0)
+    engagements: int = Field(default=0, ge=0)
 
 
 def _error(status: int, code: str, message: str, details: dict | None = None) -> JSONResponse:
@@ -29,7 +49,8 @@ def _error(status: int, code: str, message: str, details: dict | None = None) ->
     )
 
 
-def create_app(engine_factory=None, usage_store_factory=None) -> FastAPI:
+def create_app(engine_factory=None, usage_store_factory=None,
+               billing_factory=None, performance_factory=None) -> FastAPI:
     """Build the app. `engine_factory` is called lazily to construct the engine,
     which keeps tests free of LLM/network dependencies."""
     app = FastAPI(title="Hashtagger API", version="1.0.0")
@@ -38,6 +59,8 @@ def create_app(engine_factory=None, usage_store_factory=None) -> FastAPI:
         engine_factory = _default_engine_factory
     if usage_store_factory is None:
         usage_store_factory = _default_usage_store_factory
+    if performance_factory is None:
+        performance_factory = _default_performance_factory
 
     _engine_cache: dict[str, object] = {}
 
@@ -50,6 +73,21 @@ def create_app(engine_factory=None, usage_store_factory=None) -> FastAPI:
         if "usage" not in _engine_cache:
             _engine_cache["usage"] = usage_store_factory()
         return _engine_cache["usage"]
+
+    def get_billing():
+        if "billing" not in _engine_cache:
+            if billing_factory is not None:
+                _engine_cache["billing"] = billing_factory()
+            else:
+                _engine_cache["billing"] = BillingService(
+                    usage=get_usage(), provider=StubPaymentProvider()
+                )
+        return _engine_cache["billing"]
+
+    def get_performance():
+        if "performance" not in _engine_cache:
+            _engine_cache["performance"] = performance_factory()
+        return _engine_cache["performance"]
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: Request, exc: RequestValidationError):
@@ -94,6 +132,35 @@ def create_app(engine_factory=None, usage_store_factory=None) -> FastAPI:
     async def usage_endpoint(account_id: str):
         return get_usage().summary(account_id)
 
+    @app.post(f"{API_PREFIX}/billing/checkout")
+    async def billing_checkout(req: BillingCheckoutRequest):
+        try:
+            return get_billing().create_checkout(account_id=req.account_id, plan=req.plan)
+        except ValueError as exc:
+            return _error(422, "VALIDATION_ERROR", str(exc))
+        except PaymentError as exc:
+            return _error(402, "PAYMENT_REQUIRED", str(exc))
+
+    @app.post(f"{API_PREFIX}/billing/webhook")
+    async def billing_webhook(event: dict):
+        try:
+            return get_billing().handle_webhook(event)
+        except ValueError as exc:
+            return _error(422, "VALIDATION_ERROR", str(exc))
+
+    @app.post(f"{API_PREFIX}/performance")
+    async def record_performance(req: PerformanceRequest):
+        perf = get_performance()
+        rid = perf.record(
+            generation_id=req.generation_id, platform=req.platform, tag=req.tag,
+            impressions=req.impressions, engagements=req.engagements,
+        )
+        return {"id": rid, "recorded": True}
+
+    @app.get(f"{API_PREFIX}/performance/top")
+    async def top_performance(platform: str | None = None, limit: int = 10):
+        return {"tags": get_performance().top_tags(platform=platform, limit=limit)}
+
     @app.get(f"{API_PREFIX}/health")
     async def health():
         return {"status": "ok"}
@@ -108,6 +175,15 @@ def _default_usage_store_factory():
     from hashtagger.usage import UsageStore
 
     return UsageStore(db_path=os.environ.get("USAGE_DB", "./hashtagger.db"))
+
+
+def _default_performance_factory():
+    """Performance store backed by the configured SQLite database."""
+    import os
+
+    from hashtagger.performance import PerformanceStore
+
+    return PerformanceStore(db_path=os.environ.get("PERF_DB", "./hashtagger.db"))
 
 
 def _default_engine_factory():
