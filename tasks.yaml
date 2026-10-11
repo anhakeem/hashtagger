@@ -55,7 +55,7 @@ tasks:
   - id: chrome-extension
     phase: extension
     agent: developer
-    status: pending
+    status: complete
     depends_on: [test]
     output: extension/
 
