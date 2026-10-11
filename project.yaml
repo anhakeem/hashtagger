@@ -1,66 +1,112 @@
+# Hashtagger — Project Definition
+# ~/.hermes/projects/hashtagger/project.yaml
+
 name: hashtagger
 description: AI-powered hashtag generator for social media
 version: 1.0.0
 author: anhakeem
 license: MIT
 
-# Project metadata
+goal: >
+  Ship a freemium hashtag generator that analyzes a social post and returns
+  ranked, trending hashtags. MVP = web app + REST API. Then a Chrome extension
+  for X/Twitter. Monetize with a $9/mo Pro tier (analytics + trend forecasting).
+
+source: https://www.loot-drop.io/ideas.html  # 1,388 upvotes
+
 tags:
   - ai
   - social-media
   - micro-saas
   - weekend-project
 
-# Development phases
 phases:
-  - name: mvp
-    description: Core AI hashtag generation engine
-    status: in_progress
+  - name: research
+    tasks:
+      - id: market-research
+        description: "Validate demand + map competitors (hashtag tools, X analytics)"
+        agent: researcher
+        output: results/market-research.md
+        depends_on: []
+        success_criteria: "≥5 competitors with pricing + 3 demand signals cited"
+
+      - id: hashtag-data-research
+        description: "Determine hashtag trend data sources + rate limits"
+        agent: researcher
+        output: results/hashtag-data-sources.md
+        depends_on: []
+        success_criteria: "≥2 usable data sources with documented limits"
+
+  - name: design
+    tasks:
+      - id: architecture
+        description: "Design API contract, data model, AI prompt strategy"
+        agent: architect
+        output: docs/architecture.md
+        depends_on: [market-research, hashtag-data-research]
+        success_criteria: "All endpoints + data model specified; API contract frozen"
+
+  - name: implementation
     tasks:
       - id: core-engine
-        description: Build the core hashtag analysis and generation engine
-        status: pending
-      - id: web-ui
-        description: Simple web interface for hashtag generation
-        status: pending
+        description: "Hashtag generation engine (AI + trend ranking)"
+        agent: developer
+        output: src/
+        depends_on: [architecture]
+        success_criteria: "Unit tests pass; engine returns ranked hashtags"
+
       - id: api
-        description: REST API for hashtag generation
-        status: pending
+        description: "FastAPI REST endpoints per contract"
+        agent: developer
+        output: src/api/
+        depends_on: [core-engine]
+        success_criteria: "All endpoints pass contract tests"
 
-  - name: chrome-extension
-    description: Chrome extension for X/Twitter integration
-    status: pending
-    tasks:
-      - id: extension-mvp
-        description: Basic Chrome extension that works on X.com
-        status: pending
+      - id: web-ui
+        description: "Web UI to paste a post and get hashtags"
+        agent: developer
+        output: public/
+        depends_on: [api]
+        success_criteria: "End-to-end: paste text → ranked hashtags render"
 
-  - name: monetization
-    description: Freemium model with premium analytics
-    status: pending
+  - name: testing
     tasks:
-      - id: pricing
-        description: Implement freemium tier system
-        status: pending
-      - id: analytics
-        description: Hashtag performance analytics dashboard
-        status: pending
+      - id: test
+        description: "Unit + integration + E2E tests"
+        agent: tester
+        output: results/test-results.md
+        depends_on: [web-ui]
+        success_criteria: "All tests pass; core coverage > 80%"
+
+  - name: extension
+    tasks:
+      - id: chrome-extension
+        description: "MV3 extension: analyze the composer on X/Twitter"
+        agent: developer
+        output: extension/
+        depends_on: [test]
+        success_criteria: "Loads unpacked clean; injects suggestions on x.com"
+
+  - name: improvement
+    tasks:
+      - id: review
+        description: "Code review, security scan, perf pass"
+        agent: reviewer
+        output: results/review-report.md
+        depends_on: [chrome-extension]
+        success_criteria: "No critical issues; secrets scan clean"
 
 # Tech stack
 stack:
-  backend: python
+  backend: python 3.11
   framework: fastapi
   frontend: html-css-js
   ai: openai-compatible-api
   database: sqlite
+  extension: chrome-manifest-v3
 
 # Monetization
 monetization:
   model: freemium
   free_tier: 10 posts/day
   pro_tier: $9/month - unlimited + analytics + trend forecasting
-
-# Sources
-sources:
-  - https://www.loot-drop.io/ideas.html
-  - Upvotes: 1388

@@ -1,0 +1,67 @@
+# Hashtagger — Task Queue
+# ~/.hermes/projects/hashtagger/tasks.yaml
+# status: pending | assigned | in_progress | review | complete | blocked
+
+tasks:
+  - id: market-research
+    phase: research
+    agent: researcher
+    status: pending
+    depends_on: []
+    output: results/market-research.md
+
+  - id: hashtag-data-research
+    phase: research
+    agent: researcher
+    status: pending
+    depends_on: []
+    output: results/hashtag-data-sources.md
+
+  - id: architecture
+    phase: design
+    agent: architect
+    status: pending
+    depends_on: [market-research, hashtag-data-research]
+    output: docs/architecture.md
+
+  - id: core-engine
+    phase: implementation
+    agent: developer
+    status: pending
+    depends_on: [architecture]
+    output: src/
+
+  - id: api
+    phase: implementation
+    agent: developer
+    status: pending
+    depends_on: [core-engine]
+    output: src/api/
+
+  - id: web-ui
+    phase: implementation
+    agent: developer
+    status: pending
+    depends_on: [api]
+    output: public/
+
+  - id: test
+    phase: testing
+    agent: tester
+    status: pending
+    depends_on: [web-ui]
+    output: results/test-results.md
+
+  - id: chrome-extension
+    phase: extension
+    agent: developer
+    status: pending
+    depends_on: [test]
+    output: extension/
+
+  - id: review
+    phase: improvement
+    agent: reviewer
+    status: pending
+    depends_on: [chrome-extension]
+    output: results/review-report.md
