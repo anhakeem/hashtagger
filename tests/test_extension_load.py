@@ -67,10 +67,15 @@ class _StubHandler(http.server.BaseHTTPRequestHandler):
 
 @pytest.fixture(scope="module")
 def stub_api():
-    with socketserver.TCPServer(("127.0.0.1", 8123), _StubHandler) as srv:
+    # Ephemeral port + SO_REUSEADDR so repeated runs never collide on TIME_WAIT.
+    class _Server(socketserver.TCPServer):
+        allow_reuse_address = True
+
+    with _Server(("127.0.0.1", 0), _StubHandler) as srv:
+        port = srv.server_address[1]
         t = threading.Thread(target=srv.serve_forever, daemon=True)
         t.start()
-        yield "http://127.0.0.1:8123"
+        yield f"http://127.0.0.1:{port}"
         srv.shutdown()
 
 
