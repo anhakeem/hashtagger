@@ -18,7 +18,9 @@ def test_id_and_platforms():
     p = MastodonProvider()
     assert p.id == "mastodon"
     assert isinstance(p.platforms, set)
-    assert "mastodon" in p.platforms
+    # Mastodon trends are platform-agnostic: they serve every contract platform.
+    assert "instagram" in p.platforms
+    assert "x" in p.platforms
 
 
 def test_fetch_returns_trend_points():
@@ -86,7 +88,7 @@ def test_fetch_skips_terms_with_no_tags():
 def test_unsupported_platform_raises():
     p = MastodonProvider()
     with pytest.raises(ValueError):
-        p.fetch("instagram", ["ai"])
+        p.fetch("myspace", ["ai"])
 
 
 def test_health_ok():

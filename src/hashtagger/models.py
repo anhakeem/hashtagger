@@ -5,6 +5,10 @@ from pydantic import BaseModel, Field
 
 PLATFORMS = ("x", "instagram", "tiktok", "youtube", "linkedin", "mastodon")
 
+# Every contract platform as a set — used by providers whose signal is
+# platform-agnostic (Mastodon/Reddit trends inform hashtags for any platform).
+ALL_PLATFORMS: set[str] = set(PLATFORMS)
+
 # Per-platform default output shaping (Instagram=5 per Dec-2025 policy).
 PLATFORM_DEFAULTS: dict[str, int] = {
     "x": 3,

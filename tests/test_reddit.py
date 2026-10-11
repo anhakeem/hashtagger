@@ -18,7 +18,9 @@ def test_id_and_platforms():
     p = RedditProvider()
     assert p.id == "reddit"
     assert isinstance(p.platforms, set)
-    assert "reddit" in p.platforms
+    # Reddit trends are platform-agnostic: they serve every contract platform.
+    assert "instagram" in p.platforms
+    assert "x" in p.platforms
 
 
 def test_fetch_extracts_hashtags_from_titles():
@@ -37,7 +39,7 @@ def test_fetch_extracts_hashtags_from_titles():
         return httpx.Response(200, json=payload)
 
     p = RedditProvider(client=_mock_client(handler))
-    points = p.fetch("reddit", ["ai", "machinelearning"])
+    points = p.fetch("instagram", ["ai", "machinelearning"])
 
     assert len(points) == 2
     assert all(isinstance(pt, TrendPoint) for pt in points)
@@ -59,7 +61,7 @@ def test_fetch_scores_proportional_to_engagement():
         return httpx.Response(200, json=payload)
 
     p = RedditProvider(client=_mock_client(handler))
-    points = p.fetch("reddit", ["ai"])
+    points = p.fetch("instagram", ["ai"])
     ai = next(pt for pt in points if pt.hashtag == "#ai")
     ml = next(pt for pt in points if pt.hashtag == "#ml")
     assert ai.score > ml.score
@@ -71,13 +73,13 @@ def test_fetch_empty_results():
         return httpx.Response(200, json={"data": {"children": []}})
 
     p = RedditProvider(client=_mock_client(handler))
-    assert p.fetch("reddit", ["nothing"]) == []
+    assert p.fetch("instagram", ["nothing"]) == []
 
 
 def test_unsupported_platform_raises():
     p = RedditProvider()
     with pytest.raises(ValueError):
-        p.fetch("instagram", ["ai"])
+        p.fetch("myspace", ["ai"])
 
 
 def test_health_ok():

@@ -2,6 +2,15 @@
 
 Strategy: scan hot posts in relevant subreddits for hashtag-like tokens
 in titles. Subreddit names and post titles mirror trending hashtags.
+
+Reddit activity is a platform-agnostic trend signal, so this provider serves
+every platform in the API contract (#2).
+
+Review fixes (deleg_6490a216 follow-up):
+  #2  serves all contract platforms
+  #6  seed terms (user-derived) are never written to logs
+  #12 a subreddit fetched for several terms is fetched once (no double-count)
+  #21 the injected httpx client is actually used
 """
 from __future__ import annotations
 
@@ -11,11 +20,13 @@ import re
 
 import httpx
 
+from hashtagger.models import ALL_PLATFORMS
 from hashtagger.trends.base import TrendPoint
 
 log = logging.getLogger(__name__)
 
-_HASHTAG_RE = re.compile(r"#(\w+)")
+# Require a leading non-word char or start, so "We're #1" doesn't match "1".
+_HASHTAG_RE = re.compile(r"(?:^|\W)#([A-Za-z][A-Za-z0-9_]{1,49})")
 
 # Map common seed terms → subreddit names (lowercase keys).
 _SUBREDDIT_MAP = {
@@ -48,7 +59,7 @@ class RedditProvider:
     """Extracts trending hashtags from Reddit hot post titles."""
 
     id = "reddit"
-    platforms = {"reddit"}
+    platforms = set(ALL_PLATFORMS)  # platform-agnostic signal (#2)
 
     def __init__(
         self,
@@ -86,14 +97,17 @@ class RedditProvider:
                 f"{self.id} provider does not support platform {platform!r}"
             )
 
-        # Aggregate engagement per hashtag
+        # #12: resolve each seed term to a subreddit, then fetch each unique
+        # subreddit exactly once — otherwise repeated fetches double-count.
+        subreddits = {self._subreddit_for(term) for term in seed_terms}
+
         engagement: dict[str, int] = {}  # name -> ups + comments
-        for term in seed_terms:
-            subreddit = self._subreddit_for(term)
+        for subreddit in subreddits:
             try:
                 posts = self._fetch_hot(subreddit)
             except Exception as exc:
-                log.warning("reddit fetch failed for r/%s: %s", subreddit, exc)
+                # #6: log subreddit + error type only — never the seed term.
+                log.warning("reddit fetch failed for r/%s (%s)", subreddit, type(exc).__name__)
                 continue
             for post_wrapper in posts:
                 post = post_wrapper.get("data", {})
@@ -128,5 +142,5 @@ class RedditProvider:
             resp = self._client.get("/r/all/hot.json", params={"limit": 1})
             return resp.status_code < 400
         except Exception as exc:
-            log.debug("reddit health check failed: %s", exc)
+            log.debug("reddit health check failed: %s", type(exc).__name__)
             return False

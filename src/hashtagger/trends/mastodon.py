@@ -2,6 +2,16 @@
 
 API: GET /api/v1/search?q=<term>&type=hashtags returns
      {"tags": [{"name", "history": [{"day": epoch, "uses": "N", "accounts": "N"}]}]}
+
+Mastodon hashtag activity is a platform-agnostic trend signal, so this provider
+serves every platform in the API contract (#2) — a tag trending on Mastodon is
+useful input when generating hashtags for X, Instagram, etc.
+
+Review fixes (deleg_6490a216 follow-up):
+  #2  serves all contract platforms
+  #6  seed terms (user-derived) are never written to logs
+  #12 a tag returned for multiple seed terms is counted once (max, not sum)
+  #21 the injected httpx client is actually used
 """
 from __future__ import annotations
 
@@ -10,6 +20,7 @@ import math
 
 import httpx
 
+from hashtagger.models import ALL_PLATFORMS
 from hashtagger.trends.base import TrendPoint
 
 log = logging.getLogger(__name__)
@@ -31,7 +42,7 @@ class MastodonProvider:
     """Fetches trending hashtags from a Mastodon instance."""
 
     id = "mastodon"
-    platforms = {"mastodon"}
+    platforms = set(ALL_PLATFORMS)  # platform-agnostic signal (#2)
 
     def __init__(
         self,
@@ -69,7 +80,8 @@ class MastodonProvider:
             try:
                 tags = self._search(term)
             except Exception as exc:
-                log.warning("mastodon search failed for %r: %s", term, exc)
+                # #6: log the provider + error type only — never the seed term.
+                log.warning("mastodon search failed (%s)", type(exc).__name__)
                 continue
             for tag in tags:
                 name = tag.get("name", "").lower().lstrip("#")
@@ -79,11 +91,13 @@ class MastodonProvider:
                 accounts = sum(
                     int(h.get("accounts", 0)) for h in tag.get("history", [])
                 )
-                if name in tag_data:
-                    tag_data[name]["uses"] += uses
-                    tag_data[name]["accounts"] += accounts
-                else:
+                existing = tag_data.get(name)
+                if existing is None:
                     tag_data[name] = {"uses": uses, "accounts": accounts}
+                else:
+                    # #12: same tag via different terms — take the max, don't sum.
+                    existing["uses"] = max(existing["uses"], uses)
+                    existing["accounts"] = max(existing["accounts"], accounts)
 
         if not tag_data:
             return []
@@ -109,5 +123,5 @@ class MastodonProvider:
             resp = self._client.get("/api/v1/instance")
             return resp.status_code < 400
         except Exception as exc:
-            log.debug("mastodon health check failed: %s", exc)
+            log.debug("mastodon health check failed: %s", type(exc).__name__)
             return False
