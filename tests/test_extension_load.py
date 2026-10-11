@@ -18,6 +18,14 @@ import pytest
 
 pytest.importorskip("playwright")
 
+# This test needs a real display + browser and is opt-in, so it does not break
+# the default suite. Run it with:  RUN_EXTENSION_TESTS=1 pytest tests/test_extension_load.py
+if not os.environ.get("RUN_EXTENSION_TESTS"):
+    pytest.skip(
+        "extension load test is opt-in; set RUN_EXTENSION_TESTS=1 to run",
+        allow_module_level=True,
+    )
+
 EXT_DIR = Path(__file__).resolve().parent.parent / "extension"
 
 
