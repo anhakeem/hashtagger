@@ -43,3 +43,26 @@ Chronological record of decisions, changes, and rationale.
 
 ### Next
 - Implementation phase: `core-engine` (TDD) → `api` → `web-ui`.
+
+## 2026-10-11 — Implementation complete (engine, API, UI, extension, monetization)
+
+All TDD, verified end-to-end. Real LLM runs confirmed through `hermes proxy`
+(free Nous models — no API key, no paid subscription).
+
+- **core-engine** (`d997d04`, 49→65 tests): trend providers + aggregator + ranking.
+  Claude review found + we fixed a post-text privacy leak, platform coverage,
+  unbounded calls, failure caching, cache keying/eviction.
+- **api** (`6661c8e`): POST /generate, GET /health; contract error shape.
+- **web-ui** (`6521f3a`): paste → ranked hashtags; e2e verified live.
+- **extension** (`865ac25`): MV3 for X/Twitter. **Verified in real Chromium**.
+- **TwitterAPI.io provider** (`eb5c5fb`): production X source, wired only when
+  `TWITTERAPI_IO_KEY` is set (free Mastodon+Reddit remain default).
+- **freemium** (`5b78352`): UsageStore, 10/day free, pro unlimited, `/usage`.
+  Verified live: 10×200 then 429 with reset_at; pro bypasses; accounts isolated.
+
+**Test count: 90 passing.** Pushed to github.com/anhakeem/hashtagger.
+**Real run:** LLM via `hermes proxy` (inclusionai/ling-3.1-flash, free) → ranked
+hashtags with trend fusion confirmed.
+
+### Next
+- Optional: billing integration (Stripe), post_performance feedback loop (v2).

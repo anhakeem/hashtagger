@@ -48,7 +48,7 @@ tasks:
   - id: test
     phase: testing
     agent: tester
-    status: pending
+    status: complete
     depends_on: [web-ui]
     output: results/test-results.md
 
