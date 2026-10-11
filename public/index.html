@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hashtagger — AI hashtag generator</title>
+<style>
+  :root {
+    --bg: #0b1120; --panel: #131c31; --panel-2: #1b2540; --border: #26324f;
+    --text: #e7ecf5; --muted: #8ea0c0; --accent: #22d3ee; --accent-2: #34d399;
+    --warn: #fbbf24; --danger: #fb7185; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+  header h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: -0.5px; }
+  header h1 .dot { color: var(--accent); }
+  header p { margin: 0 0 28px; color: var(--muted); }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 20px;
+  }
+  label { display: block; font-size: 12px; text-transform: uppercase;
+          letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px; }
+  textarea, select, input[type=number] {
+    width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+    font: inherit; resize: vertical;
+  }
+  textarea { min-height: 120px; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+  .row > div { flex: 1 1 160px; }
+  button {
+    margin-top: 16px; width: 100%; cursor: pointer;
+    background: linear-gradient(180deg, var(--accent), #0891b2);
+    color: #04212b; border: 0; border-radius: 8px; padding: 13px 18px;
+    font: 600 15px/1 inherit;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .results { margin-top: 22px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 13px; margin: 0 8px 8px 0; font-size: 14px;
+  }
+  .tag .score { color: var(--muted); font-size: 12px; }
+  .tag.trending { border-color: var(--accent-2); }
+  .tag.trending::before { content: "▲"; color: var(--accent-2); font-size: 10px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .error { color: var(--danger); }
+  .badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px;
+           border:1px solid var(--border); color:var(--muted); margin-left:8px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 30px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Hash<span class="dot">tagger</span></h1>
+    <p>Paste a post, get ranked, trending hashtags. <span class="badge" id="api-badge">checking API…</span></p>
+  </header>
+
+  <div class="card">
+    <label for="text">Your post</label>
+    <textarea id="text" placeholder="e.g. Just shipped a new AI feature that cuts deploy time in half 🚀"></textarea>
+
+    <div class="row">
+      <div>
+        <label for="platform">Platform</label>
+        <select id="platform">
+          <option value="instagram">Instagram</option>
+          <option value="x">X / Twitter</option>
+          <option value="tiktok">TikTok</option>
+          <option value="youtube">YouTube</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="mastodon">Mastodon</option>
+        </select>
+      </div>
+      <div>
+        <label for="max_tags">Max tags</label>
+        <input type="number" id="max_tags" min="1" max="30" value="5" />
+      </div>
+      <div>
+        <label for="tone">Tone (optional)</label>
+        <input type="text" id="tone" placeholder="professional, playful…" />
+      </div>
+    </div>
+
+    <button id="go">Generate hashtags</button>
+    <div id="status" class="meta"></div>
+  </div>
+
+  <div id="results" class="results"></div>
+
+  <footer>Hashtagger · MIT · local-first demo UI</footer>
+</div>
+
+<script>
+const API = window.HASHTAGGER_API || "http://localhost:8000";
+const $ = (id) => document.getElementById(id);
+
+async function checkHealth() {
+  const badge = $("api-badge");
+  try {
+    const r = await fetch(`${API}/api/v1/health`);
+    badge.textContent = r.ok ? "API online" : "API error";
+  } catch {
+    badge.textContent = "API offline";
+  }
+}
+
+function render(payload) {
+  const box = $("results");
+  if (!payload.hashtags || !payload.hashtags.length) {
+    box.innerHTML = `<div class="card"><span class="meta">No hashtags returned.</span></div>`;
+    return;
+  }
+  const tags = payload.hashtags.map(h => {
+    const cls = h.trending ? "tag trending" : "tag";
+    const comp = h.competition ? ` · ${h.competition}` : "";
+    return `<span class="${cls}" title="score ${h.score}${comp}">${h.tag}
+      <span class="score">${(h.score * 100).toFixed(0)}%</span></span>`;
+  }).join("");
+  box.innerHTML = `<div class="card">
+      <label>Ranked hashtags (${payload.hashtags.length} of max ${payload.max_tags})</label>
+      <div>${tags}</div>
+      <div class="meta">platform: ${payload.platform} · model: ${payload.model || "n/a"}</div>
+    </div>`;
+}
+
+async function generate() {
+  const btn = $("go"), status = $("status");
+  const body = {
+    text: $("text").value.trim(),
+    platform: $("platform").value,
+    max_tags: parseInt($("max_tags").value, 10) || undefined,
+    tone: $("tone").value.trim() || undefined,
+  };
+  if (!body.text) { status.innerHTML = `<span class="error">Please enter a post.</span>`; return; }
+
+  btn.disabled = true; status.textContent = "Generating…";
+  try {
+    const r = await fetch(`${API}/api/v1/generate`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      status.innerHTML = `<span class="error">${data?.error?.message || "Request failed"}</span>`;
+      return;
+    }
+    status.textContent = "Done.";
+    render(data);
+  } catch (e) {
+    status.innerHTML = `<span class="error">Network error — is the API running?</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$("go").addEventListener("click", generate);
+checkHealth();
+</script>
+</body>
+</html>

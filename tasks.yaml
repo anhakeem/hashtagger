@@ -34,7 +34,7 @@ tasks:
   - id: api
     phase: implementation
     agent: developer
-    status: pending
+    status: complete
     depends_on: [core-engine]
     output: src/api/
 
