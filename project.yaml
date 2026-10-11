@@ -1,0 +1,66 @@
+name: hashtagger
+description: AI-powered hashtag generator for social media
+version: 1.0.0
+author: anhakeem
+license: MIT
+
+# Project metadata
+tags:
+  - ai
+  - social-media
+  - micro-saas
+  - weekend-project
+
+# Development phases
+phases:
+  - name: mvp
+    description: Core AI hashtag generation engine
+    status: in_progress
+    tasks:
+      - id: core-engine
+        description: Build the core hashtag analysis and generation engine
+        status: pending
+      - id: web-ui
+        description: Simple web interface for hashtag generation
+        status: pending
+      - id: api
+        description: REST API for hashtag generation
+        status: pending
+
+  - name: chrome-extension
+    description: Chrome extension for X/Twitter integration
+    status: pending
+    tasks:
+      - id: extension-mvp
+        description: Basic Chrome extension that works on X.com
+        status: pending
+
+  - name: monetization
+    description: Freemium model with premium analytics
+    status: pending
+    tasks:
+      - id: pricing
+        description: Implement freemium tier system
+        status: pending
+      - id: analytics
+        description: Hashtag performance analytics dashboard
+        status: pending
+
+# Tech stack
+stack:
+  backend: python
+  framework: fastapi
+  frontend: html-css-js
+  ai: openai-compatible-api
+  database: sqlite
+
+# Monetization
+monetization:
+  model: freemium
+  free_tier: 10 posts/day
+  pro_tier: $9/month - unlimited + analytics + trend forecasting
+
+# Sources
+sources:
+  - https://www.loot-drop.io/ideas.html
+  - Upvotes: 1388
