@@ -29,13 +29,15 @@ def _error(status: int, code: str, message: str, details: dict | None = None) ->
     )
 
 
-def create_app(engine_factory=None) -> FastAPI:
+def create_app(engine_factory=None, usage_store_factory=None) -> FastAPI:
     """Build the app. `engine_factory` is called lazily to construct the engine,
     which keeps tests free of LLM/network dependencies."""
     app = FastAPI(title="Hashtagger API", version="1.0.0")
 
     if engine_factory is None:
         engine_factory = _default_engine_factory
+    if usage_store_factory is None:
+        usage_store_factory = _default_usage_store_factory
 
     _engine_cache: dict[str, object] = {}
 
@@ -43,6 +45,11 @@ def create_app(engine_factory=None) -> FastAPI:
         if "engine" not in _engine_cache:
             _engine_cache["engine"] = engine_factory()
         return _engine_cache["engine"]
+
+    def get_usage():
+        if "usage" not in _engine_cache:
+            _engine_cache["usage"] = usage_store_factory()
+        return _engine_cache["usage"]
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: Request, exc: RequestValidationError):
@@ -58,6 +65,16 @@ def create_app(engine_factory=None) -> FastAPI:
 
     @app.post(f"{API_PREFIX}/generate", response_model=GenerateResponse)
     async def generate(req: GenerateRequest):
+        # Freemium enforcement: an identified account is rate-limited on free.
+        usage = get_usage()
+        if req.account_id is not None and not usage.can_generate(req.account_id):
+            s = usage.summary(req.account_id)
+            return _error(
+                429, "RATE_LIMITED",
+                f"free tier limit reached ({s['limit']}/day); upgrade for unlimited",
+                {"tier": s["tier"], "limit": s["limit"], "used_today": s["used_today"],
+                 "reset_at": s["reset_at"]},
+            )
         try:
             result = get_engine().generate(
                 text=req.text,
@@ -69,13 +86,28 @@ def create_app(engine_factory=None) -> FastAPI:
         except Exception as exc:  # noqa: BLE001 — map any engine failure to 502
             log.error("generate failed: %s", type(exc).__name__)
             return _error(502, "UPSTREAM_ERROR", "hashtag generation failed")
+        if req.account_id is not None:
+            usage.increment(req.account_id)
         return result
+
+    @app.get(f"{API_PREFIX}/usage")
+    async def usage_endpoint(account_id: str):
+        return get_usage().summary(account_id)
 
     @app.get(f"{API_PREFIX}/health")
     async def health():
         return {"status": "ok"}
 
     return app
+
+
+def _default_usage_store_factory():
+    """Usage store backed by the configured SQLite database."""
+    import os
+
+    from hashtagger.usage import UsageStore
+
+    return UsageStore(db_path=os.environ.get("USAGE_DB", "./hashtagger.db"))
 
 
 def _default_engine_factory():

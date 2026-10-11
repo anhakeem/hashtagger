@@ -28,6 +28,7 @@ class GenerateRequest(BaseModel):
     max_tags: int | None = Field(default=None, ge=1, le=30)
     tone: str | None = None
     include_trends: bool = True
+    account_id: str | None = Field(default=None, max_length=128)
 
     def model_post_init(self, __context) -> None:
         if self.platform not in PLATFORMS:
