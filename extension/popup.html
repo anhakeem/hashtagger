@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  :root {
+    --bg: #0b1120; --panel: #131c31; --border: #26324f;
+    --text: #e7ecf5; --muted: #8ea0c0; --accent: #22d3ee; --green: #34d399; --danger: #fb7185;
+  }
+  * { box-sizing: border-box; }
+  body {
+    width: 320px; margin: 0; padding: 14px; background: var(--bg); color: var(--text);
+    font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 16px; margin: 0 0 2px; }
+  h1 .dot { color: var(--accent); }
+  .badge { font-size: 10px; color: var(--muted); border: 1px solid var(--border);
+           border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
+  label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+          color: var(--muted); margin: 10px 0 5px; }
+  textarea, input {
+    width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 7px; padding: 8px; font: inherit; resize: vertical;
+  }
+  textarea { min-height: 76px; }
+  button {
+    cursor: pointer; background: linear-gradient(180deg, var(--accent), #0891b2);
+    color: #04212b; border: 0; border-radius: 7px; padding: 9px 12px; font: 600 13px/1 inherit;
+  }
+  button.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; }
+  .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .actions button { flex: 1; }
+  .tag { display: inline-flex; gap: 5px; align-items: center; background: var(--panel);
+         border: 1px solid var(--border); border-radius: 999px; padding: 4px 9px;
+         margin: 0 5px 5px 0; font-size: 12px; }
+  .tag.trending { border-color: var(--green); }
+  .tag .score { color: var(--muted); font-size: 10px; }
+  #results { margin-top: 12px; }
+  .meta { color: var(--muted); font-size: 11px; margin-top: 6px; }
+  .error { color: var(--danger); }
+</style>
+</head>
+<body>
+  <h1>Hash<span class="dot">tagger</span><span class="badge" id="badge">checking…</span></h1>
+
+  <label for="text">Post</label>
+  <textarea id="text" placeholder="Compose or capture from the page…"></textarea>
+
+  <label for="max">Max tags</label>
+  <input id="max" type="number" min="1" max="30" value="5" />
+
+  <div class="actions">
+    <button class="secondary" id="capture">Capture post</button>
+    <button id="go">Generate</button>
+  </div>
+  <div id="status" class="meta"></div>
+
+  <div id="results"></div>
+  <button id="copy" class="secondary" style="display:none;width:100%;margin-top:8px;">Copy all</button>
+</body>
+<script src="popup.js"></script>
+</html>
