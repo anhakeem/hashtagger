@@ -41,7 +41,7 @@ tasks:
   - id: web-ui
     phase: implementation
     agent: developer
-    status: pending
+    status: complete
     depends_on: [api]
     output: public/
 
