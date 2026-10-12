@@ -10,21 +10,21 @@ Firefox 109+ supports Manifest V3, but with differences from Chrome:
 
 ## Build the Firefox variant
 
-The Firefox manifest (`manifest.firefox.json`) differs from Chrome's
-(`manifest.json`). To load it, swap the manifest:
+The build script assembles both bundles from one source tree:
 
 ```bash
 cd extension
-cp manifest.json manifest.chrome.json.bak   # keep the chrome one
-cp manifest.firefox.json manifest.json
-# ... load unpacked in Firefox ...
-# restore afterwards:
-mv manifest.chrome.json.bak manifest.json
+./build.sh            # builds dist/chrome/ and dist/firefox/
+./build.sh firefox    # or just one
 ```
 
-> A cleaner build step (a small script that assembles `dist/firefox/` and
-> `dist/chrome/` from a shared source + per-browser manifest) is the natural
-> next increment — see the note at the bottom.
+Each bundle gets the right manifest copied to `manifest.json`, and the script
+verifies every file the manifest references actually exists. Then:
+
+- **Chrome/Edge/Brave:** load `dist/chrome/` unpacked
+- **Firefox:** load `dist/firefox/` via `about:debugging#/runtime/this-firefox`
+
+`dist/` is git-ignored — it is generated output, not source.
 
 ## Load in Firefox (temporary)
 
