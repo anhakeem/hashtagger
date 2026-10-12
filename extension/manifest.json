@@ -8,13 +8,12 @@
     "default_title": "Hashtagger"
   },
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": ["https://x.com/*", "https://twitter.com/*"],
-      "js": ["content.js"],
+      "js": ["browser-compat.js", "content.js"],
       "run_at": "document_idle"
     }
   ],

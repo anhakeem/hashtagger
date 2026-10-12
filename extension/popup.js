@@ -2,34 +2,16 @@
 //
 // The popup reads the current tab's composer text (via a content-script
 // message), lets the user generate hashtags, and copies them to the clipboard.
+//
+// Cross-browser: uses `ext.*` from browser-compat.js (loaded before this file).
 
 const $ = (id) => document.getElementById(id);
 const PLATFORM = "x"; // popup is X/Twitter-focused for v1
 
-function sendToTab(tabId, msg) {
-  return new Promise((resolve) => {
-    chrome.tabs.sendMessage(tabId, msg, (resp) => {
-      if (chrome.runtime.lastError) resolve(null);
-      else resolve(resp);
-    });
-  });
-}
-
-function sendToBackground(msg) {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(msg, (resp) => resolve(resp));
-  });
-}
-
-async function currentTab() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab;
-}
-
 async function loadComposerText() {
-  const tab = await currentTab();
+  const tab = await ext.activeTab();
   if (!tab) return;
-  const resp = await sendToTab(tab.id, { type: "GET_COMPOSER_TEXT" });
+  const resp = await ext.sendToTab(tab.id, { type: "GET_COMPOSER_TEXT" });
   if (resp?.text) $("text").value = resp.text;
 }
 
@@ -61,7 +43,7 @@ async function generate() {
   }
   btn.disabled = true;
   status.textContent = "Generating…";
-  const resp = await sendToBackground({
+  const resp = await ext.sendMessage({
     type: "GENERATE",
     payload: { text, platform: PLATFORM, maxTags: parseInt($("max").value, 10) || undefined },
   });
@@ -75,7 +57,7 @@ async function generate() {
 }
 
 async function checkHealth() {
-  const resp = await sendToBackground({ type: "HEALTH" });
+  const resp = await ext.sendMessage({ type: "HEALTH" });
   $("badge").textContent = resp?.ok ? "API online" : "API offline";
 }
 

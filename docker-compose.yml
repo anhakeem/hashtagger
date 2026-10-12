@@ -1,0 +1,23 @@
+services:
+  api:
+    build: .
+    image: hashtagger-api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      # LLM: default to the local Hermes proxy (free, no API key).
+      # From a container, host.docker.internal reaches the host.
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-http://host.docker.internal:8645/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-placeholder}
+      OPENAI_MODEL: ${OPENAI_MODEL:-inclusionai/ling-3.1-flash}
+      # Optional production X/Twitter trend source.
+      TWITTERAPI_IO_KEY: ${TWITTERAPI_IO_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - hashtagger-data:/data
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  hashtagger-data:

@@ -1,13 +1,20 @@
-// Hashtagger — service worker (MV3).
+// Hashtagger — service worker / background script (MV3).
 //
 // Owns ALL network calls (the content script never calls the API directly, so
 // host permissions stay minimal and CORS is never an issue). State lives in
-// chrome.storage because the service worker is terminated when idle.
+// extension storage because the worker is terminated when idle.
+//
+// Cross-browser: uses `ext.*` from browser-compat.js. Chrome loads it via the
+// importScripts call below; Firefox loads it via the manifest.
+
+if (typeof importScripts === "function") {
+  importScripts("browser-compat.js");
+}
 
 const DEFAULT_API = "http://localhost:8000";
 
 async function getApiBase() {
-  const { apiBase } = await chrome.storage.local.get(["apiBase"]);
+  const { apiBase } = await ext.storageGet(["apiBase"]);
   return apiBase || DEFAULT_API;
 }
 
@@ -29,8 +36,8 @@ async function generateHashtags({ text, platform, maxTags, tone }) {
   return data;
 }
 
-// Message router. Listeners registered at top level so they exist on cold start.
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+// Listener registered at top level so it exists on cold start.
+ext.onMessage((msg, _sender, sendResponse) => {
   if (msg?.type === "GENERATE") {
     generateHashtags(msg.payload)
       .then((data) => sendResponse({ ok: true, data }))
